@@ -1,6 +1,8 @@
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
+import PasswordInput from '@/Components/PasswordInput';
 import PrimaryButton from '@/Components/PrimaryButton';
+import SocialLoginButtons from '@/Components/SocialLoginButtons';
 import TextInput from '@/Components/TextInput';
 import GuestLayout from '@/Layouts/GuestLayout';
 import { Head, Link, useForm } from '@inertiajs/react';
@@ -26,10 +28,13 @@ export default function Register() {
         <GuestLayout>
             <Head title="Register" />
 
-            <form onSubmit={submit}>
-                <div>
-                    <InputLabel htmlFor="name" value="Name" />
+            <h2 className="mb-6 text-center text-2xl font-bold tracking-widest text-white">
+                CREAR <span className="text-red-500">CUENTA</span>
+            </h2>
 
+            <form onSubmit={submit} className="space-y-5">
+                <div>
+                    <InputLabel htmlFor="name" value="Nombre" />
                     <TextInput
                         id="name"
                         name="name"
@@ -40,13 +45,11 @@ export default function Register() {
                         onChange={(e) => setData('name', e.target.value)}
                         required
                     />
-
                     <InputError message={errors.name} className="mt-2" />
                 </div>
 
-                <div className="mt-4">
-                    <InputLabel htmlFor="email" value="Email" />
-
+                <div>
+                    <InputLabel htmlFor="email" value="Correo Electrónico" />
                     <TextInput
                         id="email"
                         type="email"
@@ -57,64 +60,52 @@ export default function Register() {
                         onChange={(e) => setData('email', e.target.value)}
                         required
                     />
-
                     <InputError message={errors.email} className="mt-2" />
                 </div>
 
-                <div className="mt-4">
-                    <InputLabel htmlFor="password" value="Password" />
-
-                    <TextInput
+                <div>
+                    <InputLabel htmlFor="password" value="Contraseña" />
+                    <PasswordInput
                         id="password"
-                        type="password"
                         name="password"
                         value={data.password}
-                        className="mt-1 block w-full"
                         autoComplete="new-password"
                         onChange={(e) => setData('password', e.target.value)}
                         required
                     />
-
                     <InputError message={errors.password} className="mt-2" />
                 </div>
 
-                <div className="mt-4">
-                    <InputLabel
-                        htmlFor="password_confirmation"
-                        value="Confirm Password"
-                    />
-
-                    <TextInput
+                <div>
+                    <InputLabel htmlFor="password_confirmation" value="Confirmar Contraseña" />
+                    <PasswordInput
                         id="password_confirmation"
-                        type="password"
                         name="password_confirmation"
                         value={data.password_confirmation}
-                        className="mt-1 block w-full"
                         autoComplete="new-password"
-                        onChange={(e) =>
-                            setData('password_confirmation', e.target.value)
-                        }
+                        onChange={(e) => setData('password_confirmation', e.target.value)}
                         required
                     />
-
-                    <InputError
-                        message={errors.password_confirmation}
-                        className="mt-2"
-                    />
+                    <InputError message={errors.password_confirmation} className="mt-2" />
                 </div>
 
-                <div className="mt-4 flex items-center justify-end">
-                    <Link
-                        href={route('login')}
-                        className="rounded-md text-sm text-gray-600 underline hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-                    >
-                        Already registered?
-                    </Link>
-
-                    <PrimaryButton className="ms-4" disabled={processing}>
-                        Register
+                <div className="pt-2">
+                    <PrimaryButton className="w-full justify-center" disabled={processing}>
+                        Registrarse
                     </PrimaryButton>
                 </div>
+
+                <p className="text-center text-sm text-gray-500">
+                    ¿Ya tienes cuenta?{' '}
+                    <Link
+                        href={route('login')}
+                        className="font-medium text-red-400 transition-colors hover:text-red-300"
+                    >
+                        Inicia sesión
+                    </Link>
+                </p>
+
+                <SocialLoginButtons />
             </form>
         </GuestLayout>
     );
