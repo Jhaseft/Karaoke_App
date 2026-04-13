@@ -1,9 +1,9 @@
-import InputError from '@/Components/InputError';
-import InputLabel from '@/Components/InputLabel';
-import PasswordInput from '@/Components/PasswordInput';
-import PrimaryButton from '@/Components/PrimaryButton';
-import SocialLoginButtons from '@/Components/SocialLoginButtons';
-import TextInput from '@/Components/TextInput';
+import InputError from '@/Components/LaravelComponents/InputError';
+import InputLabel from '@/Components/LaravelComponents/InputLabel';
+import PasswordInput from '@/Components/LaravelComponents/PasswordInput';
+import PrimaryButton from '@/Components/LaravelComponents/PrimaryButton';
+import SocialLoginButtons from '@/Components/LaravelComponents/SocialLoginButtons';
+import TextInput from '@/Components/LaravelComponents/TextInput';
 import GuestLayout from '@/Layouts/GuestLayout';
 import { Head, Link, useForm } from '@inertiajs/react';
 import { FormEventHandler } from 'react';

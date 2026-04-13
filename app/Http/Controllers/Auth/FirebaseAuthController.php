@@ -16,6 +16,7 @@ class FirebaseAuthController extends Controller
 
     public function store(Request $request)
     {
+        set_time_limit(120);
         $request->validate(['id_token' => 'required|string']);
 
         // Verificar el token de Firebase y obtener los datos del usuario
@@ -32,25 +33,26 @@ class FirebaseAuthController extends Controller
         $name  = $verifiedToken->claims()->get('name') ?? explode('@', $email)[0];
         $photo = $verifiedToken->claims()->get('picture');
 
-        // Buscar o crear el usuario en la base de datos
-        $user = User::firstOrCreate(
-            ['firebase_uid' => $uid],
-            [
+        // Buscar por firebase_uid o por email
+        $user = User::where('firebase_uid', $uid)
+            ->orWhere('email', $email)
+            ->first();
+
+        if ($user) {
+            $user->update(['firebase_uid' => $uid, 'avatar' => $photo]);
+        } else {
+            $user = User::create([
+                'firebase_uid'      => $uid,
                 'name'              => $name,
                 'email'             => $email,
                 'avatar'            => $photo,
                 'email_verified_at' => now(),
-            ]
-        );
-
-        // Si ya existía por email (registro normal previo), vincular el firebase_uid
-        if (! $user->wasRecentlyCreated && ! $user->firebase_uid) {
-            $user->update(['firebase_uid' => $uid, 'avatar' => $photo]);
+            ]);
         }
 
         Auth::login($user, remember: true);
         $request->session()->regenerate();
 
-        return redirect()->intended(route('dashboard'));
+        return redirect()->intended(route('karaoke'));
     }
 }

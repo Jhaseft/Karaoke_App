@@ -1,6 +1,6 @@
 import { router } from '@inertiajs/react';
 import { useState } from 'react';
-import { signInWithFacebook, signInWithGoogle } from '../firebase';
+import { signInWithFacebook, signInWithGoogle } from '@/firebase';
 
 export default function SocialLoginButtons() {
     const [loading, setLoading] = useState<'google' | 'facebook' | null>(null);
