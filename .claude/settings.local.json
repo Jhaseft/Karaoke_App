@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(php artisan tinker '--execute= *)",
+      "Bash(yt-dlp --version)",
+      "Bash(python -m yt_dlp --version)",
+      "Bash(pip show *)",
+      "Bash(pip3 show *)",
+      "Bash(pip install *)",
+      "Bash(python -m yt_dlp --dump-json --no-playlist --no-warnings \"https://www.youtube.com/watch?v=QzR3FiN1YSQ\")",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('title:', d['title']\\); fmts=[f for f in d['formats'] if f.get\\('vcodec'\\)!='none' and f.get\\('acodec'\\)!='none' and f.get\\('ext'\\)=='mp4']; fmts.sort\\(key=lambda x: x.get\\('height',0\\)\\); [print\\(f['height'],'p -', f['url'][:80]\\) for f in fmts[-3:]]\")",
+      "Bash(where python *)",
+      "Bash(ls d:/Karaoke_Project/Dockerfile* d:/Karaoke_Project/docker* d:/Karaoke_Project/docker-compose*)",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('php:', d.get\\('require',{}\\).get\\('php','?'\\)\\); print\\('laravel:', d.get\\('require',{}\\).get\\('laravel/framework','?'\\)\\)\")",
+      "Bash(npm show *)",
+      "Bash(npm install *)",
+      "Bash(npm run *)"
+    ]
+  }
+}
