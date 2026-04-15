@@ -1,7 +1,7 @@
-import ApplicationLogo from '@/Components/ApplicationLogo';
-import Dropdown from '@/Components/Dropdown';
-import NavLink from '@/Components/NavLink';
-import ResponsiveNavLink from '@/Components/ResponsiveNavLink';
+import ApplicationLogo from '@/Components/LaravelComponents/ApplicationLogo';
+import Dropdown from '@/Components/LaravelComponents/Dropdown';
+import NavLink from '@/Components/Karaoke/NavLink';
+import ResponsiveNavLink from '@/Components/LaravelComponents/ResponsiveNavLink';
 import { Link, usePage } from '@inertiajs/react';
 import { PropsWithChildren, ReactNode, useState } from 'react';
 

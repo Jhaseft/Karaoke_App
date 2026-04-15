@@ -38,7 +38,7 @@ class YoutubeSearchController extends Controller
                 'title'         => $item['title'],
                 'author'        => $item['author'],
                 'duration'      => $item['lengthSeconds'] ?? 0,
-                'thumbnail'     => "https://i.ytimg.com/vi/{$item['videoId']}/hqdefault.jpg",
+                'thumbnail'     => "https://i.ytimg.com/vi/{$item['videoId']}/hqdefault.jpg",//devuelve metadata del video 
                 'viewCount'     => $item['viewCount'] ?? 0,
                 'publishedText' => $item['publishedText'] ?? '',
             ])

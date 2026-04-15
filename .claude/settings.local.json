@@ -14,7 +14,8 @@
       "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('php:', d.get\\('require',{}\\).get\\('php','?'\\)\\); print\\('laravel:', d.get\\('require',{}\\).get\\('laravel/framework','?'\\)\\)\")",
       "Bash(npm show *)",
       "Bash(npm install *)",
-      "Bash(npm run *)"
+      "Bash(npm run *)",
+      "Bash(curl -s -o d:/Karaoke_Project/public/blank.mp4 \"https://cdn.plyr.io/static/blank.mp4\")"
     ]
   }
 }
