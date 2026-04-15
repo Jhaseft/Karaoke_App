@@ -36,7 +36,7 @@ RUN composer install --no-dev --optimize-autoloader --no-scripts
 
 # Copiar package.json y compilar assets
 COPY package.json package-lock.json ./
-RUN npm ci
+RUN npm install
 
 COPY . .
 
