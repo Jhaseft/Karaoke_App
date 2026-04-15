@@ -16,19 +16,19 @@ class YoutubeSearchController extends Controller
         'https://invidious.projectsegfau.lt/api/v1',
     ];
 
-    private function client()
+    private function client(int $timeout = 8)
     {
         return Http::withHeaders([
             'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36',
-        ])->timeout(8);
+        ])->timeout($timeout);
     }
 
     /** Llama a una ruta de la API probando instancias hasta que una responda */
-    private function fetchFromAnyInstance(string $path, array $params = []): ?array
+    private function fetchFromAnyInstance(string $path, array $params = [], int $timeout = 8): ?array
     {
         foreach (self::INSTANCES as $base) {
             try {
-                $res = $this->client()->get($base . $path, $params);
+                $res = $this->client($timeout)->get($base . $path, $params);
                 if ($res->successful()) {
                     $data = $res->json();
                     if (!empty($data)) return $data;
@@ -75,40 +75,21 @@ class YoutubeSearchController extends Controller
             return response()->json(['error' => 'ID de video inválido'], 400);
         }
 
-        // En Windows usa python; en Linux/Docker usa el binario yt-dlp directamente
-        if (PHP_OS_FAMILY === 'Windows') {
-            $python = 'C:\\Program Files\\Python312\\python.exe';
-            $ytdlp  = "\"{$python}\" -m yt_dlp";
-        } else {
-            // pip3 install yt-dlp instala el binario en /usr/bin/yt-dlp en Alpine
-            $ytdlp = '/usr/bin/yt-dlp';
-        }
+        // Usar Invidious /videos/{id} — no requiere Python ni yt-dlp
+        $data = $this->fetchFromAnyInstance('/videos/' . $videoId, [], 15);
 
-        $url = 'https://www.youtube.com/watch?v=' . escapeshellarg($videoId);
-        $cmd = "{$ytdlp} --dump-json --no-playlist --no-warnings --quiet {$url} 2>&1";
-
-        $output = shell_exec($cmd);
-
-        if (!$output) {
+        if (!$data) {
             return response()->json(['error' => 'No se pudo obtener el video'], 502);
         }
 
-        $info = json_decode($output, true);
-        if (!$info || isset($info['error'])) {
-            return response()->json(['error' => 'Error al procesar el video'], 502);
-        }
-
-        $streams = collect($info['formats'] ?? [])
-            ->filter(fn($f) =>
-                ($f['vcodec'] ?? 'none') !== 'none' &&
-                ($f['acodec'] ?? 'none') !== 'none'
-            )
-            ->sortByDesc(fn($f) => $f['height'] ?? 0)
-            ->take(4)
+        // formatStreams = streams combinados video+audio (mp4), listos para reproducir
+        $streams = collect($data['formatStreams'] ?? [])
+            ->filter(fn($f) => str_contains($f['type'] ?? '', 'video/mp4'))
+            ->sortByDesc(fn($f) => (int) filter_var($f['resolution'] ?? '0p', FILTER_SANITIZE_NUMBER_INT))
             ->map(fn($f) => [
                 'url'     => $f['url'],
-                'quality' => ($f['height'] ?? '?') . 'p',
-                'ext'     => $f['ext'] ?? 'mp4',
+                'quality' => $f['resolution'] ?? $f['qualityLabel'] ?? '360p',
+                'ext'     => 'mp4',
             ])
             ->values();
 
@@ -117,7 +98,7 @@ class YoutubeSearchController extends Controller
         }
 
         return response()->json([
-            'title'   => $info['title'],
+            'title'   => $data['title'] ?? '',
             'streams' => $streams,
         ]);
     }

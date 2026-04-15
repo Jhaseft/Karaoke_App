@@ -1,12 +1,10 @@
 FROM php:8.4-fpm-alpine
 
-# Instalar dependencias del sistema
+# Instalar dependencias del sistema (sin python3/pip — ya no se usa yt-dlp)
 RUN apk add --no-cache \
     nginx \
     nodejs \
     npm \
-    python3 \
-    py3-pip \
     curl \
     zip \
     unzip \
@@ -18,14 +16,8 @@ RUN apk add --no-cache \
 # Extensiones PHP necesarias para Laravel
 RUN docker-php-ext-install pdo pdo_mysql mbstring zip gd bcmath opcache
 
-# Asegurar que shell_exec no esté deshabilitado (necesario para yt-dlp)
-RUN echo "disable_functions =" > /usr/local/etc/php/conf.d/yt-dlp.ini
-
 # Instalar Composer
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
-
-# Instalar yt-dlp con pip (ignorar aviso de entorno externo en Alpine)
-RUN pip3 install --break-system-packages yt-dlp
 
 # Configurar Nginx
 COPY docker/nginx.conf /etc/nginx/nginx.conf
