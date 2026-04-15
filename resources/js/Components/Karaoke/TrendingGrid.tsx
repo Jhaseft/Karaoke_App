@@ -15,7 +15,6 @@ export default function TrendingGrid({ songs, activeSongId, onPlay, loading }: P
         <section className="px-4 mt-6">
             <div className="flex items-center justify-between mb-3">
                 <h3 className="text-base font-bold text-white">Tendencias</h3>
-                <button className="text-xs text-red-400 hover:text-red-300">Ver todo</button>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
                 {loading

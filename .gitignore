@@ -4,6 +4,8 @@
 .env.backup
 .env.production
 .phpactor.json
+serve.bat
+artisan.bat
 .phpunit.result.cache
 /.fleet
 /.idea

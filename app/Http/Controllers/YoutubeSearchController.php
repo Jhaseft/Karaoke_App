@@ -3,127 +3,133 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Cache;
 
 class YoutubeSearchController extends Controller
 {
-    // Instancias Invidious en orden de preferencia
-    private const INSTANCES = [
-        'https://inv.nadeko.net/api/v1',
-        'https://invidious.privacyredirect.com/api/v1',
-        'https://invidious.nerdvpn.de/api/v1',
-        'https://y.com.sb/api/v1',
-        'https://invidious.projectsegfau.lt/api/v1',
-    ];
+    private const YTDLP     = 'yt-dlp';
+    private const NODE_PATH = 'C:/Program Files/nodejs/node.exe';
 
-    private function client(int $timeout = 8)
+    private function ytdlpBase(): string
     {
-        return Http::withHeaders([
-            'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36',
-        ])->timeout($timeout);
+        $node = self::NODE_PATH;
+        return self::YTDLP . " --js-runtimes \"node:{$node}\" --no-warnings";
     }
 
-    /** Llama a una ruta de la API probando instancias hasta que una responda */
-    private function fetchFromAnyInstance(string $path, array $params = [], int $timeout = 8): ?array
+    /** Ejecuta un comando yt-dlp y devuelve las líneas JSON parseadas */
+    private function runYtdlp(string $args): array
     {
-        foreach (self::INSTANCES as $base) {
-            try {
-                $res = $this->client($timeout)->get($base . $path, $params);
-                if ($res->successful()) {
-                    $data = $res->json();
-                    if (!empty($data)) return $data;
-                }
-            } catch (\Throwable) {
-                // intentar siguiente instancia
-            }
+        $cmd = $this->ytdlpBase() . ' ' . $args . ' 2>&1';
+        $raw = shell_exec($cmd);
+
+        if (!$raw) return [];
+
+        $results = [];
+        foreach (explode("\n", $raw) as $line) {
+            $line = trim($line);
+            if (!str_starts_with($line, '{')) continue;
+            $data = json_decode($line, true);
+            if ($data) $results[] = $data;
         }
-        return null;
+        return $results;
+    }
+
+    /** Mapea un resultado de yt-dlp a formato estándar de la app */
+    private function mapEntry(array $entry): array
+    {
+        $id = $entry['id'] ?? $entry['display_id'] ?? '';
+        return [
+            'videoId'       => $id,
+            'title'         => $entry['title'] ?? '',
+            'author'        => $entry['channel'] ?? $entry['uploader'] ?? '',
+            'duration'      => (int)($entry['duration'] ?? 0),
+            'thumbnail'     => $entry['thumbnail']
+                             ?? "https://i.ytimg.com/vi/{$id}/hqdefault.jpg",
+            'viewCount'     => (int)($entry['view_count'] ?? 0),
+            'publishedText' => $entry['upload_date'] ?? '',
+        ];
     }
 
     public function search(Request $request)
     {
         $request->validate(['q' => 'required|string|max:200']);
 
-        $data = $this->fetchFromAnyInstance('/search', [
-            'q'    => $request->input('q'),
-            'type' => 'video',
-        ]);
+        $q    = $request->input('q');
+        $query = escapeshellarg("ytsearch25:{$q}");
+        $args  = "--dump-json --flat-playlist --no-download {$query}";
 
-        if (!$data) {
-            return response()->json(['error' => 'No se pudo contactar ninguna instancia'], 502);
+        $items = $this->runYtdlp($args);
+
+        if (empty($items)) {
+            return response()->json(['error' => 'No se encontraron resultados'], 502);
         }
 
-        $videos = collect($data)
-            ->filter(fn($item) => ($item['type'] ?? '') === 'video')
-            ->map(fn($item) => [
-                'videoId'       => $item['videoId'],
-                'title'         => $item['title'],
-                'author'        => $item['author'],
-                'duration'      => $item['lengthSeconds'] ?? 0,
-                'thumbnail'     => "https://i.ytimg.com/vi/{$item['videoId']}/hqdefault.jpg",
-                'viewCount'     => $item['viewCount'] ?? 0,
-                'publishedText' => $item['publishedText'] ?? '',
-            ])
+        $videos = collect($items)
+            ->filter(fn($e) => !empty($e['id']))
+            ->map(fn($e) => $this->mapEntry($e))
             ->values();
 
         return response()->json($videos);
     }
 
-    public function streams(Request $request, string $videoId)
+    public function trending()
+    {
+        $videos = Cache::remember('yt_trending', 1800, function () {
+            // Busca karaoke popular como proxy de trending (no requiere API key)
+            $query = escapeshellarg('ytsearch20:karaoke popular');
+            $args  = "--dump-json --flat-playlist --no-download {$query}";
+            return $this->runYtdlp($args);
+        });
+
+        if (empty($videos)) {
+            return response()->json(['error' => 'No se pudo obtener tendencias'], 502);
+        }
+
+        $result = collect($videos)
+            ->filter(fn($e) => !empty($e['id']))
+            ->map(fn($e) => $this->mapEntry($e))
+            ->values();
+
+        return response()->json($result);
+    }
+
+    public function streams(string $videoId)
     {
         if (!preg_match('/^[a-zA-Z0-9_\-]{6,16}$/', $videoId)) {
             return response()->json(['error' => 'ID de video inválido'], 400);
         }
 
-        // Usar Invidious /videos/{id} — no requiere Python ni yt-dlp
-        $data = $this->fetchFromAnyInstance('/videos/' . $videoId, [], 15);
+        $ytUrl = escapeshellarg('https://www.youtube.com/watch?v=' . $videoId);
+        $args  = "--dump-json --no-download {$ytUrl}";
 
-        if (!$data) {
-            return response()->json(['error' => 'No se pudo obtener el video'], 502);
+        $items = $this->runYtdlp($args);
+        $info  = $items[0] ?? null;
+
+        if (!$info) {
+            return response()->json(['error' => 'yt-dlp no pudo obtener el video'], 502);
         }
 
-        // formatStreams = streams combinados video+audio (mp4), listos para reproducir
-        $streams = collect($data['formatStreams'] ?? [])
-            ->filter(fn($f) => str_contains($f['type'] ?? '', 'video/mp4'))
-            ->sortByDesc(fn($f) => (int) filter_var($f['resolution'] ?? '0p', FILTER_SANITIZE_NUMBER_INT))
+        $streams = collect($info['formats'] ?? [])
+            ->filter(fn($f) =>
+                ($f['ext'] ?? '') === 'mp4' &&
+                ($f['acodec'] ?? 'none') !== 'none' &&
+                ($f['vcodec'] ?? 'none') !== 'none'
+            )
+            ->sortByDesc(fn($f) => $f['height'] ?? 0)
             ->map(fn($f) => [
                 'url'     => $f['url'],
-                'quality' => $f['resolution'] ?? $f['qualityLabel'] ?? '360p',
+                'quality' => ($f['height'] ?? 360) . 'p',
                 'ext'     => 'mp4',
             ])
             ->values();
 
         if ($streams->isEmpty()) {
-            return response()->json(['error' => 'No hay formatos de video disponibles'], 502);
+            return response()->json(['error' => 'No hay formatos mp4 disponibles'], 502);
         }
 
         return response()->json([
-            'title'   => $data['title'] ?? '',
+            'title'   => $info['title'] ?? '',
             'streams' => $streams,
         ]);
-    }
-
-    public function trending()
-    {
-        $data = $this->fetchFromAnyInstance('/trending', ['type' => 'music']);
-
-        if (!$data) {
-            return response()->json(['error' => 'No se pudo obtener tendencias'], 502);
-        }
-
-        $videos = collect($data)
-            ->take(12)
-            ->map(fn($item) => [
-                'videoId'       => $item['videoId'],
-                'title'         => $item['title'],
-                'author'        => $item['author'],
-                'duration'      => $item['lengthSeconds'] ?? 0,
-                'thumbnail'     => "https://i.ytimg.com/vi/{$item['videoId']}/hqdefault.jpg",
-                'viewCount'     => $item['viewCount'] ?? 0,
-                'publishedText' => $item['publishedText'] ?? '',
-            ])
-            ->values();
-
-        return response()->json($videos);
     }
 }

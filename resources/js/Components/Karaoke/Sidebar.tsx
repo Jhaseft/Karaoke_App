@@ -33,9 +33,10 @@ interface Props {
     activeLabel: string;
     user: User;
     onClose: () => void;
+    onNavClick: (label: string) => void;
 }
 
-export default function Sidebar({ isOpen, hasPlayer, activeLabel, user, onClose }: Props) {
+export default function Sidebar({ isOpen, hasPlayer, activeLabel, user, onClose, onNavClick }: Props) {
     return (
         <>
 
@@ -85,6 +86,7 @@ export default function Sidebar({ isOpen, hasPlayer, activeLabel, user, onClose 
                         return (
                             <button
                                 key={item.label}
+                                onClick={() => { onNavClick(item.label); onClose(); }}
                                 className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150"
                                 style={
                                     active

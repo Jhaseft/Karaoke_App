@@ -11,6 +11,7 @@ interface Props {
     onQueryChange: (value: string) => void;
     onSearch: () => void;
     onClear: () => void;
+    onNavClick: (label: string) => void;
     children: React.ReactNode;
 }
 
@@ -21,6 +22,7 @@ export default function KaraokeLayout({
     onQueryChange,
     onSearch,
     onClear,
+    onNavClick,
     children,
 }: Props) {
     const { auth } = usePage<PageProps>().props;
@@ -38,6 +40,7 @@ export default function KaraokeLayout({
                 activeLabel={activeLabel}
                 user={auth.user}
                 onClose={() => setSidebarOpen(false)}
+                onNavClick={onNavClick}
             />
 
             <div className="flex-1 flex flex-col min-w-0 h-screen">

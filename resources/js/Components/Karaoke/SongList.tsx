@@ -4,11 +4,13 @@ import SongRow from './SongRow';
 interface Props {
     songs: Song[];
     activeSongId: number | null;
+    favorites?: string[];
     onPlay: (song: Song) => void;
+    onToggleFavorite?: (song: Song) => void;
     loading?: boolean;
 }
 
-export default function SongList({ songs, activeSongId, onPlay, loading }: Props) {
+export default function SongList({ songs, activeSongId, favorites = [], onPlay, onToggleFavorite, loading }: Props) {
     return (
         <section className="px-4 mt-8 pb-4">
             <div className="flex items-center justify-between mb-3">
@@ -34,7 +36,9 @@ export default function SongList({ songs, activeSongId, onPlay, loading }: Props
                             song={song}
                             index={idx + 1}
                             isActive={activeSongId === song.id}
+                            isFavorite={song.videoId ? favorites.includes(song.videoId) : false}
                             onPlay={onPlay}
+                            onToggleFavorite={onToggleFavorite}
                         />
                     ))
                 }

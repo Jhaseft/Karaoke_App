@@ -31,13 +31,13 @@ function videoColor(videoId: string): string {
     return `hsl(${hue}, 60%, 10%)`;
 }
 
-function mapApiToSongs(data: any[], idOffset = 0): Song[] {
+function mapApiToSongs(data: any[], idOffset = 0, type = 'Karaoke'): Song[] {
     return data.map((v, i) => ({
         id:        idOffset + i,
         videoId:   v.videoId,
         title:     v.title,
         artist:    v.author,
-        type:      'Karaoke',
+        type,
         duration:  formatDuration(v.duration),
         views:     formatViews(v.viewCount),
         color:     videoColor(v.videoId),
@@ -48,59 +48,75 @@ function mapApiToSongs(data: any[], idOffset = 0): Song[] {
 
 // Qué buscar por cada chip de categoría
 const CATEGORY_QUERIES: Record<string, string> = {
-    'Karaoke':     'karaoke',
-    'Lyric':       'lyric video',
-    'Subtitulado': 'karaoke subtitulado',
-    'Reggaeton':   'reggaeton karaoke',
-    'Pop':         'pop karaoke',
-    'Rock':        'rock karaoke',
-    'Cumbia':      'cumbia karaoke',
+    'Karaoke':     'karaoke version',
+    'Lyric':       'official lyrics video',
+    'Subtitulado': 'con letra official audio',
+    'Reggaeton':   'reggaeton 2024',
+    'Pop':         'pop 2024',
+    'Rock':        'rock 2024',
+    'Cumbia':      'cumbia 2024',
 };
 
 // ── page ─────────────────────────────────────────────────────────────────────
 export default function Karaoke() {
-    const [query, setQuery]                 = useState('');
-    const [searchResults, setSearchResults] = useState<Song[] | null>(null);
-    const [activeFilter, setActiveFilter]   = useState('Todo');
-    const [activeCategory, setActiveCategory] = useState('Todo');
-    const [currentSong, setCurrentSong]     = useState<Song | null>(null);
-    const [isPlaying, setIsPlaying]         = useState(false);
-    const [searching, setSearching]         = useState(false);
+    const [query, setQuery]                      = useState('');
+    const [searchResults, setSearchResults]      = useState<Song[] | null>(null);
+    const [activeFilter, setActiveFilter]        = useState('Todo');
+    const [activeCategory, setActiveCategory]    = useState('Todo');
+    const [currentSong, setCurrentSong]          = useState<Song | null>(null);
+    const [isPlaying, setIsPlaying]              = useState(false);
+    const [searching, setSearching]              = useState(false);
+    const [featuredItems, setFeaturedItems]      = useState<FeaturedSong[]>([]);
+    const [trendingSongs, setTrendingSongs]      = useState<Song[]>([]);
+    const [allSongs, setAllSongs]                = useState<Song[]>([]);
+    const [loadingHome, setLoadingHome]          = useState(true);
+    const [loadingCategory, setLoadingCategory]  = useState(false);
+    const [favorites, setFavorites]              = useState<string[]>([]);
 
-    const [featuredItems, setFeaturedItems] = useState<FeaturedSong[]>([]);
-    const [trendingSongs, setTrendingSongs] = useState<Song[]>([]);
-    const [allSongs, setAllSongs]           = useState<Song[]>([]);
-    const [loadingHome, setLoadingHome]     = useState(true);
-    const [loadingCategory, setLoadingCategory] = useState(false);
-
-    // Cache de trending para restaurar al volver a "Todo"
     const trendingCache = useRef<{ featured: FeaturedSong[]; trending: Song[]; all: Song[] } | null>(null);
+    const historyRef    = useRef<Song[]>([]);
 
-    // ── Carga inicial: trending o fallback con búsqueda ──────────────────────
+    //agrear useEffect para cargar favoritos al inicio y cada vez que se actualicen
     useEffect(() => {
         loadHome();
+        fetch('/api/favorites')
+            .then(r => r.ok ? r.json() : [])
+            .then((data: any[]) => setFavorites(data.map(f => f.videoId).filter(Boolean)))
+            .catch(() => {});
     }, []);
 
+    // ── Carga inicial ─────────────────────────────────────────────────────────
     async function loadHome() {
         setLoadingHome(true);
         try {
-            const res = await fetch('/api/trending');
-            if (!res.ok) throw new Error();
-            const data: any[] = await res.json();
-            if (!data.length) throw new Error();
+            const categories: { type: string; q: string }[] = [
+                { type: 'Karaoke',     q: 'karaoke version' },
+                { type: 'Lyric',       q: 'official lyrics video' },
+                { type: 'Subtitulado', q: 'con letra official audio' },
+                { type: 'Reggaeton',   q: 'reggaeton 2024' },
+                { type: 'Pop',         q: 'pop 2024' },
+                { type: 'Rock',        q: 'rock 2024' },
+                { type: 'Cumbia',      q: 'cumbia 2024' },
+            ];
 
-            const songs = mapApiToSongs(data, 500);
-            applyHomeData(songs);
+            const results = await Promise.allSettled(
+                categories.map(c => fetch('/api/search?q=' + encodeURIComponent(c.q)).then(r => r.json()))
+            );
+
+            let mixed: Song[] = [];
+            results.forEach((res, i) => {
+                if (res.status === 'fulfilled' && Array.isArray(res.value)) {
+                    mixed = mixed.concat(mapApiToSongs(res.value.slice(0, 4), 500 + i * 50, categories[i].type));
+                }
+            });
+
+            if (!mixed.length) throw new Error();
+            applyHomeData(mixed);
         } catch {
-            // Trending falló → buscar "karaoke popular" como fallback
             try {
                 const res = await fetch('/api/search?q=' + encodeURIComponent('karaoke popular'));
-                const data: any[] = await res.json();
-                const songs = mapApiToSongs(data, 500);
-                applyHomeData(songs);
-            } catch {
-                // Ambos fallaron, dejamos skeletons (array vacío)
-            }
+                applyHomeData(mapApiToSongs(await res.json(), 500));
+            } catch { /* skeletons */ }
         } finally {
             setLoadingHome(false);
         }
@@ -108,31 +124,20 @@ export default function Karaoke() {
 
     function applyHomeData(songs: Song[]) {
         const featured: FeaturedSong[] = songs.slice(0, 3).map(s => ({
-            id:        s.id,
-            videoId:   s.videoId,
-            title:     s.title,
-            artist:    s.artist,
-            type:      s.type,
-            duration:  s.duration,
-            color:     s.color,
-            accent:    '#ef4444',
-            initial:   s.initial,
-            thumbnail: s.thumbnail,
+            id: s.id, videoId: s.videoId, title: s.title, artist: s.artist,
+            type: s.type, duration: s.duration, color: s.color,
+            accent: '#ef4444', initial: s.initial, thumbnail: s.thumbnail,
         }));
-
         setFeaturedItems(featured);
         setTrendingSongs(songs.slice(3, 11));
         setAllSongs(songs);
-
         trendingCache.current = { featured, trending: songs.slice(3, 11), all: songs };
     }
 
-    // ── Cambio de categoría → búsqueda real ──────────────────────────────────
+    // ── Cambio de categoría ───────────────────────────────────────────────────
     async function handleCategoryChange(cat: string) {
         setActiveCategory(cat);
-
         if (cat === 'Todo') {
-            // Restaurar datos de trending desde cache
             if (trendingCache.current) {
                 setFeaturedItems(trendingCache.current.featured);
                 setTrendingSongs(trendingCache.current.trending);
@@ -140,46 +145,46 @@ export default function Karaoke() {
             }
             return;
         }
-
         const q = CATEGORY_QUERIES[cat] ?? `${cat} karaoke`;
         setLoadingCategory(true);
         try {
-            const res  = await fetch('/api/search?q=' + encodeURIComponent(q));
-            const data: any[] = await res.json();
-            const songs = mapApiToSongs(data, 600);
-
+            const data: any[] = await fetch('/api/search?q=' + encodeURIComponent(q)).then(r => r.json());
+            const songs = mapApiToSongs(data, 600, cat);
             const featured: FeaturedSong[] = songs.slice(0, 3).map(s => ({
                 id: s.id, videoId: s.videoId, title: s.title, artist: s.artist,
                 type: s.type, duration: s.duration, color: s.color,
                 accent: '#ef4444', initial: s.initial, thumbnail: s.thumbnail,
             }));
-
             setFeaturedItems(featured);
             setTrendingSongs(songs.slice(3, 11));
             setAllSongs(songs);
-        } catch {
-            // Si falla, mantiene lo que había
-        } finally {
-            setLoadingCategory(false);
-        }
+        } catch { /* mantiene lo anterior */ }
+        finally { setLoadingCategory(false); }
     }
 
-    // ── Búsqueda del usuario ──────────────────────────────────────────────────
+    // ── Búsqueda ──────────────────────────────────────────────────────────────
     async function handleSearch() {
         const q = query.trim();
         if (!q) { handleClear(); return; }
-
         setSearching(true);
         try {
-            const res  = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
-            const data = await res.json();
-            setSearchResults(mapApiToSongs(data as any[], 1));
+            const searches = [
+                { suffix: 'karaoke version',      type: 'Karaoke'     },
+                { suffix: 'official lyrics video', type: 'Lyric'       },
+                { suffix: 'con letra',             type: 'Subtitulado' },
+            ];
+            const responses = await Promise.allSettled(
+                searches.map(s => fetch('/api/search?q=' + encodeURIComponent(`${q} ${s.suffix}`)).then(r => r.json()))
+            );
+            let combined: Song[] = [];
+            responses.forEach((res, i) => {
+                if (res.status === 'fulfilled' && Array.isArray(res.value))
+                    combined = combined.concat(mapApiToSongs(res.value.slice(0, 17), 1 + i * 100, searches[i].type));
+            });
+            setSearchResults(combined);
             setActiveFilter('Todo');
-        } catch {
-            setSearchResults([]);
-        } finally {
-            setSearching(false);
-        }
+        } catch { setSearchResults([]); }
+        finally { setSearching(false); }
     }
 
     function handleClear() {
@@ -188,14 +193,108 @@ export default function Karaoke() {
         setActiveFilter('Todo');
     }
 
+    // ── Reproducción ──────────────────────────────────────────────────────────
     function playSong(song: Song) {
+        if (currentSong) historyRef.current = [...historyRef.current.slice(-49), currentSong];
         setCurrentSong(song);
         setIsPlaying(true);
     }
 
-    const activeNavLabel = searchResults !== null ? 'Explorar' : 'Inicio';
-    const hasRealVideo   = !!currentSong?.videoId;
-    const homeLoading    = loadingHome || loadingCategory;
+    function playPrev() {
+        const prev = historyRef.current.pop();
+        if (prev) setCurrentSong(prev);
+    }
+
+    async function playRandom() {
+        const type = currentSong?.type ?? 'Karaoke';
+        const q    = CATEGORY_QUERIES[type] ?? 'karaoke version';
+        try {
+            const data: any[] = await fetch('/api/search?q=' + encodeURIComponent(q)).then(r => r.json());
+            const candidates  = mapApiToSongs(data, 900, type).filter(s => s.videoId && s.videoId !== currentSong?.videoId);
+            if (candidates.length) playSong(candidates[Math.floor(Math.random() * candidates.length)]);
+        } catch { /* silencio */ }
+    }
+
+    // ── Favoritos ─────────────────────────────────────────────────────────────
+    async function toggleFavorite(song: Song) {
+        if (!song.videoId) return;
+        const isFav = favorites.includes(song.videoId);
+
+        if (isFav) {
+            setFavorites(f => f.filter(id => id !== song.videoId));
+            await fetch(`/api/favorites/${song.videoId}`, { method: 'DELETE' }).catch(() => {});
+        } else {
+            setFavorites(f => [...f, song.videoId!]);
+            await fetch('/api/favorites', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content ?? '' },
+                body: JSON.stringify({
+                    videoId:   song.videoId,
+                    title:     song.title,
+                    artist:    song.artist,
+                    type:      song.type,
+                    duration:  song.duration,
+                    thumbnail: song.thumbnail ?? null,
+                }),
+            }).catch(() => {});
+        }
+    }
+
+    // ── Navegación del sidebar ────────────────────────────────────────────────
+    function handleNavClick(label: string) {
+        const labelToCategory: Record<string, string> = {
+            'Karaoke': 'Karaoke', 'Lyrics': 'Lyric', 'Subtitulado': 'Subtitulado',
+        };
+
+        if (label === 'Inicio') {
+            setSearchResults(null);
+            setQuery('');
+            setActiveCategory('Todo');
+            loadHome();
+        } else if (label === 'Explorar') {
+            // activa estado visual solamente
+        } else if (labelToCategory[label]) {
+            setSearchResults(null);
+            setQuery('');
+            handleCategoryChange(labelToCategory[label]);
+        } else if (label === 'Favoritos') {
+            setQuery('');
+            setActiveCategory('Favoritos');
+            fetch('/api/favorites')
+                .then(r => r.ok ? r.json() : [])
+                .then((data: any[]) => {
+                    const songs: Song[] = data.map((f, i) => ({
+                        id:        2000 + i,
+                        videoId:   f.videoId,
+                        title:     f.title,
+                        artist:    f.author,
+                        type:      f.type ?? 'Karaoke',
+                        duration:  f.duration ?? '0:00',
+                        views:     '',
+                        color:     videoColor(f.videoId ?? ''),
+                        initial:   f.title?.charAt(0).toUpperCase() ?? '?',
+                        thumbnail: f.thumbnail,
+                    }));
+                    setSearchResults(songs);
+                    setActiveFilter('Todo');
+                })
+                .catch(() => {});
+        }
+        // Mi Lista: por implementar
+    }
+
+    // ── Computed ──────────────────────────────────────────────────────────────
+    const categoryToNavLabel: Record<string, string> = {
+        'Lyric': 'Lyrics', 'Karaoke': 'Karaoke', 'Subtitulado': 'Subtitulado', 'Favoritos': 'Favoritos',
+    };
+    const activeNavLabel = searchResults !== null
+        ? (activeCategory === 'Favoritos' ? 'Favoritos' : 'Explorar')
+        : (activeCategory !== 'Todo' && categoryToNavLabel[activeCategory])
+            ? categoryToNavLabel[activeCategory]
+            : 'Inicio';
+
+    const hasRealVideo = !!currentSong?.videoId;
+    const homeLoading  = loadingHome || loadingCategory;
 
     return (
         <>
@@ -208,8 +307,8 @@ export default function Karaoke() {
                 onQueryChange={setQuery}
                 onSearch={handleSearch}
                 onClear={handleClear}
+                onNavClick={handleNavClick}
             >
-                {/* Spinner búsqueda de usuario */}
                 {searching && (
                     <div className="flex items-center justify-center py-24">
                         <svg className="animate-spin h-10 w-10 text-red-500" viewBox="0 0 24 24" fill="none">
@@ -221,42 +320,33 @@ export default function Karaoke() {
 
                 {!searching && searchResults !== null && (
                     <SearchResults
-                        query={query}
+                        query={activeCategory === 'Favoritos' ? 'Mis Favoritos' : query}
                         results={searchResults}
                         activeFilter={activeFilter}
                         activeSongId={currentSong?.id ?? null}
+                        favorites={favorites}
                         onFilterChange={setActiveFilter}
                         onPlay={playSong}
+                        onToggleFavorite={toggleFavorite}
                     />
                 )}
 
                 {!searching && searchResults === null && (
                     <div className="pb-4">
-                        <FeaturedBanner
-                            items={featuredItems}
-                            onPlay={playSong}
-                            loading={loadingHome}
-                        />
+                        <FeaturedBanner items={featuredItems} onPlay={playSong} loading={loadingHome} />
 
                         <div className="mt-5">
-                            <CategoryChips
-                                categories={CATEGORIES}
-                                active={activeCategory}
-                                onChange={handleCategoryChange}
-                            />
+                            <CategoryChips categories={CATEGORIES} active={activeCategory} onChange={handleCategoryChange} />
                         </div>
 
-                        <TrendingGrid
-                            songs={trendingSongs}
-                            activeSongId={currentSong?.id ?? null}
-                            onPlay={playSong}
-                            loading={homeLoading}
-                        />
+                        <TrendingGrid songs={trendingSongs} activeSongId={currentSong?.id ?? null} onPlay={playSong} loading={homeLoading} />
 
                         <SongList
                             songs={allSongs}
                             activeSongId={currentSong?.id ?? null}
+                            favorites={favorites}
                             onPlay={playSong}
+                            onToggleFavorite={toggleFavorite}
                             loading={homeLoading}
                         />
                     </div>
@@ -267,6 +357,9 @@ export default function Karaoke() {
                 <KaraokeVideoPlayer
                     song={currentSong}
                     onClose={() => { setCurrentSong(null); setIsPlaying(false); }}
+                    onEnded={playRandom}
+                    onNext={playRandom}
+                    onPrev={playPrev}
                 />
             )}
             {currentSong && !hasRealVideo && (

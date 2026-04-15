@@ -1,5 +1,5 @@
 import { useRef } from 'react';
-import { Bell, Menu, Search, X } from 'lucide-react';
+import { Menu, Search, X } from 'lucide-react';
 import type { User } from '@/types';
 
 interface Props {
@@ -72,9 +72,7 @@ export default function TopBar({ query, onChange, onSearch, onClear, onMenuOpen,
 
 
             <div className="ml-auto flex items-center gap-2">
-                <button className="p-2 rounded-full text-gray-400 hover:text-white hover:bg-white/5 transition-colors">
-                    <Bell size={20} />
-                </button>
+            
                 <div
                     className="flex items-center justify-center rounded-full text-xs font-bold text-white cursor-pointer"
                     style={{ width: 32, height: 32, background: 'linear-gradient(135deg, #dc2626, #7f1d1d)', border: '1px solid rgba(220,38,38,0.4)' }}
