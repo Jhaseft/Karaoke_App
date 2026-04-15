@@ -18,6 +18,9 @@ RUN apk add --no-cache \
 # Extensiones PHP necesarias para Laravel
 RUN docker-php-ext-install pdo pdo_mysql mbstring zip gd bcmath opcache
 
+# Asegurar que shell_exec no esté deshabilitado (necesario para yt-dlp)
+RUN echo "disable_functions =" > /usr/local/etc/php/conf.d/yt-dlp.ini
+
 # Instalar Composer
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 

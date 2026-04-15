@@ -7,38 +7,60 @@ use Illuminate\Support\Facades\Http;
 
 class YoutubeSearchController extends Controller
 {
-    private const INVIDIOUS_BASE = 'https://y.com.sb/api/v1';
+    // Instancias Invidious en orden de preferencia
+    private const INSTANCES = [
+        'https://inv.nadeko.net/api/v1',
+        'https://invidious.privacyredirect.com/api/v1',
+        'https://invidious.nerdvpn.de/api/v1',
+        'https://y.com.sb/api/v1',
+        'https://invidious.projectsegfau.lt/api/v1',
+    ];
 
     private function client()
     {
         return Http::withHeaders([
             'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36',
-        ])->timeout(10);
+        ])->timeout(8);
+    }
+
+    /** Llama a una ruta de la API probando instancias hasta que una responda */
+    private function fetchFromAnyInstance(string $path, array $params = []): ?array
+    {
+        foreach (self::INSTANCES as $base) {
+            try {
+                $res = $this->client()->get($base . $path, $params);
+                if ($res->successful()) {
+                    $data = $res->json();
+                    if (!empty($data)) return $data;
+                }
+            } catch (\Throwable) {
+                // intentar siguiente instancia
+            }
+        }
+        return null;
     }
 
     public function search(Request $request)
     {
         $request->validate(['q' => 'required|string|max:200']);
 
-        $query = $request->input('q');
-
-        $response = $this->client()->get(self::INVIDIOUS_BASE . '/search', [
-            'q'    => $query,
+        $data = $this->fetchFromAnyInstance('/search', [
+            'q'    => $request->input('q'),
             'type' => 'video',
         ]);
 
-        if ($response->failed()) {
-            return response()->json(['error' => 'Error al contactar Invidious'], 502);
+        if (!$data) {
+            return response()->json(['error' => 'No se pudo contactar ninguna instancia'], 502);
         }
 
-        $videos = collect($response->json())
+        $videos = collect($data)
             ->filter(fn($item) => ($item['type'] ?? '') === 'video')
             ->map(fn($item) => [
                 'videoId'       => $item['videoId'],
                 'title'         => $item['title'],
                 'author'        => $item['author'],
                 'duration'      => $item['lengthSeconds'] ?? 0,
-                'thumbnail'     => "https://i.ytimg.com/vi/{$item['videoId']}/hqdefault.jpg",//devuelve metadata del video 
+                'thumbnail'     => "https://i.ytimg.com/vi/{$item['videoId']}/hqdefault.jpg",
                 'viewCount'     => $item['viewCount'] ?? 0,
                 'publishedText' => $item['publishedText'] ?? '',
             ])
@@ -53,13 +75,17 @@ class YoutubeSearchController extends Controller
             return response()->json(['error' => 'ID de video inválido'], 400);
         }
 
-        // En Windows usa el path completo; en Linux/Docker usa python3 del PATH
-        $python = PHP_OS_FAMILY === 'Windows'
-            ? 'C:\\Program Files\\Python312\\python.exe'
-            : 'python3';
+        // En Windows usa python; en Linux/Docker usa el binario yt-dlp directamente
+        if (PHP_OS_FAMILY === 'Windows') {
+            $python = 'C:\\Program Files\\Python312\\python.exe';
+            $ytdlp  = "\"{$python}\" -m yt_dlp";
+        } else {
+            // pip3 install yt-dlp instala el binario en /usr/bin/yt-dlp en Alpine
+            $ytdlp = '/usr/bin/yt-dlp';
+        }
 
         $url = 'https://www.youtube.com/watch?v=' . escapeshellarg($videoId);
-        $cmd = "\"{$python}\" -m yt_dlp --dump-json --no-playlist --no-warnings --quiet {$url} 2>&1";
+        $cmd = "{$ytdlp} --dump-json --no-playlist --no-warnings --quiet {$url} 2>&1";
 
         $output = shell_exec($cmd);
 
@@ -72,7 +98,6 @@ class YoutubeSearchController extends Controller
             return response()->json(['error' => 'Error al procesar el video'], 502);
         }
 
-        // Primero intentar formatos combinados (video+audio en el mismo archivo)
         $streams = collect($info['formats'] ?? [])
             ->filter(fn($f) =>
                 ($f['vcodec'] ?? 'none') !== 'none' &&
@@ -99,15 +124,13 @@ class YoutubeSearchController extends Controller
 
     public function trending()
     {
-        $response = $this->client()->get(self::INVIDIOUS_BASE . '/trending', [
-            'type' => 'music',
-        ]);
+        $data = $this->fetchFromAnyInstance('/trending', ['type' => 'music']);
 
-        if ($response->failed()) {
-            return response()->json(['error' => 'Error al contactar Invidious'], 502);
+        if (!$data) {
+            return response()->json(['error' => 'No se pudo obtener tendencias'], 502);
         }
 
-        $videos = collect($response->json())
+        $videos = collect($data)
             ->take(12)
             ->map(fn($item) => [
                 'videoId'       => $item['videoId'],
