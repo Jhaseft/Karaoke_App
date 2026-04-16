@@ -9,12 +9,14 @@ interface Props {
     activeFilter: string;
     activeSongId: number | null;
     favorites?: string[];
+    playlist?: string[];
     onFilterChange: (filter: string) => void;
     onPlay: (song: Song) => void;
     onToggleFavorite?: (song: Song) => void;
+    onTogglePlaylist?: (song: Song) => void;
 }
 
-export default function SearchResults({ query, results, activeFilter, activeSongId, favorites = [], onFilterChange, onPlay, onToggleFavorite }: Props) {
+export default function SearchResults({ query, results, activeFilter, activeSongId, favorites = [], playlist = [], onFilterChange, onPlay, onToggleFavorite, onTogglePlaylist }: Props) {
     const filtered = activeFilter === 'Todo' ? results : results.filter(s => s.type === activeFilter);
 
     return (
@@ -48,8 +50,10 @@ export default function SearchResults({ query, results, activeFilter, activeSong
                             index={idx + 1}
                             isActive={activeSongId === song.id}
                             isFavorite={song.videoId ? favorites.includes(song.videoId) : false}
+                            inPlaylist={song.videoId ? playlist.includes(song.videoId) : false}
                             onPlay={onPlay}
                             onToggleFavorite={onToggleFavorite}
+                            onTogglePlaylist={onTogglePlaylist}
                         />
                     ))}
                 </div>

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Play, Star } from 'lucide-react';
+import { Play, Star, ListPlus } from 'lucide-react';
 import type { Song } from '@/types/karaoke';
 import AlbumArt from './AlbumArt';
 import TypeBadge from './TypeBadge';
@@ -9,11 +9,13 @@ interface Props {
     index: number;
     isActive: boolean;
     isFavorite?: boolean;
+    inPlaylist?: boolean;
     onPlay: (song: Song) => void;
     onToggleFavorite?: (song: Song) => void;
+    onTogglePlaylist?: (song: Song) => void;
 }
 
-export default function SongRow({ song, index, isActive, isFavorite, onPlay, onToggleFavorite }: Props) {
+export default function SongRow({ song, index, isActive, isFavorite, inPlaylist, onPlay, onToggleFavorite, onTogglePlaylist }: Props) {
     const [hovered, setHovered] = useState(false);
 
     return (
@@ -73,6 +75,18 @@ export default function SongRow({ song, index, isActive, isFavorite, onPlay, onT
                             size={14}
                             fill={isFavorite ? '#facc15' : 'none'}
                             color={isFavorite ? '#facc15' : '#6b7280'}
+                        />
+                    </button>
+                )}
+                {onTogglePlaylist && (
+                    <button
+                        onClick={e => { e.stopPropagation(); onTogglePlaylist(song); }}
+                        className="p-1 rounded transition-colors hover:scale-110"
+                        title={inPlaylist ? 'Quitar de Mi Lista' : 'Agregar a Mi Lista'}
+                    >
+                        <ListPlus
+                            size={14}
+                            color={inPlaylist ? '#ef4444' : '#6b7280'}
                         />
                     </button>
                 )}

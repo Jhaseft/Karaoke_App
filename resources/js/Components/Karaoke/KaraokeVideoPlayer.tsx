@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import {
     ChevronDown, ChevronUp, X, Maximize2, Minimize2,
-    SkipBack, SkipForward, Play, Pause, Repeat1
+    SkipBack, SkipForward, Play, Pause, Repeat1, Star, ListPlus
 } from 'lucide-react';
 // @ts-ignore — plyr ships mixed export=/export default typings; works fine at runtime with esModuleInterop
 import PlyrJS from 'plyr';
@@ -16,9 +16,13 @@ interface Props {
     onNext?: () => void;
     onPrev?: () => void;
     onEnded?: () => void;
+    isFavorite?: boolean;
+    inPlaylist?: boolean;
+    onToggleFavorite?: () => void;
+    onTogglePlaylist?: () => void;
 }
 
-export default function KaraokeVideoPlayer({ song, onClose, onNext, onPrev, onEnded }: Props) {
+export default function KaraokeVideoPlayer({ song, onClose, onNext, onPrev, onEnded, isFavorite, inPlaylist, onToggleFavorite, onTogglePlaylist }: Props) {
     const containerRef             = useRef<HTMLDivElement>(null);
     const plyrRef                  = useRef<PlyrJS | null>(null);
     const repeatRef                = useRef(false);
@@ -188,6 +192,16 @@ export default function KaraokeVideoPlayer({ song, onClose, onNext, onPrev, onEn
                     </>
                 )}
 
+                {onToggleFavorite && (
+                    <button onClick={onToggleFavorite} className="p-1.5 hover:scale-110 transition-colors" title={isFavorite ? 'Quitar de favoritos' : 'Agregar a favoritos'}>
+                        <Star size={16} fill={isFavorite ? '#facc15' : 'none'} color={isFavorite ? '#facc15' : '#6b7280'} />
+                    </button>
+                )}
+                {onTogglePlaylist && (
+                    <button onClick={onTogglePlaylist} className="p-1.5 hover:scale-110 transition-colors" title={inPlaylist ? 'Quitar de Mi Lista' : 'Agregar a Mi Lista'}>
+                        <ListPlus size={16} color={inPlaylist ? '#ef4444' : '#6b7280'} />
+                    </button>
+                )}
                 <button onClick={onClose} className="p-1 text-gray-600 hover:text-red-400 transition-colors">
                     <X size={mini ? 14 : 16} />
                 </button>

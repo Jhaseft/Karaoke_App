@@ -33,7 +33,7 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerate();
 
-        return redirect()->intended(route('karaoke', absolute: false));
+        return redirect()->route('karaoke');
     }
 
     /**

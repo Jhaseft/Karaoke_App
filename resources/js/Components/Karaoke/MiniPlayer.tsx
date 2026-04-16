@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Pause, Play, SkipBack, SkipForward, X } from 'lucide-react';
+import { ListPlus, Pause, Play, SkipBack, SkipForward, Star, X } from 'lucide-react';
 import type { Song } from '@/types/karaoke';
 import AlbumArt from './AlbumArt';
 import TypeBadge from './TypeBadge';
@@ -7,11 +7,15 @@ import TypeBadge from './TypeBadge';
 interface Props {
     song: Song;
     isPlaying: boolean;
+    isFavorite?: boolean;
+    inPlaylist?: boolean;
     onToggle: () => void;
     onClose: () => void;
+    onToggleFavorite?: () => void;
+    onTogglePlaylist?: () => void;
 }
 
-export default function MiniPlayer({ song, isPlaying, onToggle, onClose }: Props) {
+export default function MiniPlayer({ song, isPlaying, isFavorite, inPlaylist, onToggle, onClose, onToggleFavorite, onTogglePlaylist }: Props) {
     const [progress, setProgress] = useState(0);
 
     useEffect(() => {
@@ -52,6 +56,19 @@ export default function MiniPlayer({ song, isPlaying, onToggle, onClose }: Props
             </div>
 
             <TypeBadge type={song.type} />
+
+            <div className="flex items-center gap-1">
+                {onToggleFavorite && (
+                    <button onClick={onToggleFavorite} className="p-1.5 text-gray-400 hover:scale-110 transition-colors" title={isFavorite ? 'Quitar de favoritos' : 'Agregar a favoritos'}>
+                        <Star size={16} fill={isFavorite ? '#facc15' : 'none'} color={isFavorite ? '#facc15' : '#6b7280'} />
+                    </button>
+                )}
+                {onTogglePlaylist && (
+                    <button onClick={onTogglePlaylist} className="p-1.5 text-gray-400 hover:scale-110 transition-colors" title={inPlaylist ? 'Quitar de Mi Lista' : 'Agregar a Mi Lista'}>
+                        <ListPlus size={16} color={inPlaylist ? '#ef4444' : '#6b7280'} />
+                    </button>
+                )}
+            </div>
 
          
             <div className="flex items-center gap-1 ml-1 sm:ml-2">

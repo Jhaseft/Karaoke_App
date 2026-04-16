@@ -1,6 +1,7 @@
 import { useRef } from 'react';
 import { Menu, Search, X } from 'lucide-react';
-import type { User } from '@/types';
+import { usePage } from '@inertiajs/react';
+import type { User, PageProps } from '@/types';
 
 interface Props {
     query: string;
@@ -8,11 +9,12 @@ interface Props {
     onSearch: () => void;
     onClear: () => void;
     onMenuOpen: () => void;
-    user: User;
+    user: User | null;
 }
 
 export default function TopBar({ query, onChange, onSearch, onClear, onMenuOpen, user }: Props) {
     const inputRef = useRef<HTMLInputElement>(null);
+    const { auth } = usePage<PageProps>().props;
 
     function handleKeyDown(e: React.KeyboardEvent) {
         if (e.key === 'Enter') onSearch();
@@ -75,9 +77,9 @@ export default function TopBar({ query, onChange, onSearch, onClear, onMenuOpen,
             
                 <div
                     className="flex items-center justify-center rounded-full text-xs font-bold text-white cursor-pointer"
-                    style={{ width: 32, height: 32, background: 'linear-gradient(135deg, #dc2626, #7f1d1d)', border: '1px solid rgba(220,38,38,0.4)' }}
+                    style={{ width: 32, height: 32, background: auth.isGuest ? 'linear-gradient(135deg, #4b5563, #1f2937)' : 'linear-gradient(135deg, #dc2626, #7f1d1d)', border: '1px solid rgba(220,38,38,0.4)' }}
                 >
-                    {user.name.charAt(0).toUpperCase() + user.name.split(' ').slice(-1)[0].charAt(0).toUpperCase()}
+                    {auth.isGuest ? '?' : user ? user.name.charAt(0).toUpperCase() + user.name.split(' ').slice(-1)[0].charAt(0).toUpperCase() : '?'}
                 </div>
             </div>
         </header>

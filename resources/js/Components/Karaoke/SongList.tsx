@@ -5,12 +5,14 @@ interface Props {
     songs: Song[];
     activeSongId: number | null;
     favorites?: string[];
+    playlist?: string[];
     onPlay: (song: Song) => void;
     onToggleFavorite?: (song: Song) => void;
+    onTogglePlaylist?: (song: Song) => void;
     loading?: boolean;
 }
 
-export default function SongList({ songs, activeSongId, favorites = [], onPlay, onToggleFavorite, loading }: Props) {
+export default function SongList({ songs, activeSongId, favorites = [], playlist = [], onPlay, onToggleFavorite, onTogglePlaylist, loading }: Props) {
     return (
         <section className="px-4 mt-8 pb-4">
             <div className="flex items-center justify-between mb-3">
@@ -37,8 +39,10 @@ export default function SongList({ songs, activeSongId, favorites = [], onPlay, 
                             index={idx + 1}
                             isActive={activeSongId === song.id}
                             isFavorite={song.videoId ? favorites.includes(song.videoId) : false}
+                            inPlaylist={song.videoId ? playlist.includes(song.videoId) : false}
                             onPlay={onPlay}
                             onToggleFavorite={onToggleFavorite}
+                            onTogglePlaylist={onTogglePlaylist}
                         />
                     ))
                 }
