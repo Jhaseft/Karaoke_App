@@ -7,13 +7,11 @@ use Illuminate\Support\Facades\Cache;
 
 class YoutubeSearchController extends Controller
 {
-    private const YTDLP     = 'yt-dlp';
-    private const NODE_PATH = 'C:/Program Files/nodejs/node.exe';
-
     private function ytdlpBase(): string
     {
-        $node = self::NODE_PATH;
-        return self::YTDLP . " --js-runtimes \"node:{$node}\" --no-warnings";
+        $node  = env('NODE_PATH', 'node');
+        $ytdlp = env('YT_DLP_PATH', 'yt-dlp');
+        return "{$ytdlp} --js-runtimes \"node:{$node}\" --no-warnings";
     }
 
     /** Ejecuta un comando yt-dlp y devuelve las líneas JSON parseadas */

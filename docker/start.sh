@@ -19,5 +19,8 @@ php artisan view:cache
 # Iniciar PHP-FPM en background
 php-fpm -D
 
+# Iniciar scheduler de Laravel en background
+(while true; do php artisan schedule:run --no-interaction; sleep 60; done) &
+
 # Iniciar Nginx en foreground
 nginx -g "daemon off;"

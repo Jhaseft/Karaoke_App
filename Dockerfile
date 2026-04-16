@@ -1,6 +1,6 @@
-FROM php:8.4-fpm-alpine
+FROM php:8.3-fpm-alpine
 
-# Instalar dependencias del sistema (sin python3/pip — ya no se usa yt-dlp)
+# Instalar dependencias del sistema
 RUN apk add --no-cache \
     nginx \
     nodejs \
@@ -9,9 +9,16 @@ RUN apk add --no-cache \
     zip \
     unzip \
     git \
+    python3 \
+    bash \
     libpng-dev \
     libzip-dev \
     oniguruma-dev
+
+# Instalar última versión oficial de yt-dlp
+RUN curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp \
+    -o /usr/local/bin/yt-dlp \
+    && chmod a+rx /usr/local/bin/yt-dlp
 
 # Extensiones PHP necesarias para Laravel
 RUN docker-php-ext-install pdo pdo_mysql mbstring zip gd bcmath opcache
@@ -22,26 +29,31 @@ COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 # Configurar Nginx
 COPY docker/nginx.conf /etc/nginx/nginx.conf
 
-# Directorio de trabajo
 WORKDIR /var/www/html
 
-# Copiar composer files primero para aprovechar cache de Docker
+# Instalar dependencias PHP
 COPY composer.json composer.lock ./
-RUN composer install --no-dev --optimize-autoloader --no-scripts
+RUN composer install \
+    --no-dev \
+    --optimize-autoloader \
+    --no-interaction \
+    --prefer-dist
 
-# Copiar package.json y compilar assets
+# Instalar dependencias JS
 COPY package.json package-lock.json ./
-RUN npm install
+RUN npm install --legacy-peer-deps
 
+# Copiar proyecto completo
 COPY . .
 
+# Build frontend
 RUN npm run build
 
-# Permisos de Laravel
+# Permisos Laravel
 RUN chown -R www-data:www-data storage bootstrap/cache \
     && chmod -R 775 storage bootstrap/cache
 
-# Script de inicio
+# Script inicio
 COPY docker/start.sh /start.sh
 RUN chmod +x /start.sh
 
