@@ -31,10 +31,11 @@ COPY docker/nginx.conf /etc/nginx/nginx.conf
 
 WORKDIR /var/www/html
 
-# Instalar dependencias PHP
+# Instalar dependencias PHP sin ejecutar scripts Laravel aún
 COPY composer.json composer.lock ./
 RUN composer install \
     --no-dev \
+    --no-scripts \
     --optimize-autoloader \
     --no-interaction \
     --prefer-dist
@@ -45,6 +46,7 @@ RUN npm install --legacy-peer-deps
 
 # Copiar proyecto completo
 COPY . .
+RUN php artisan package:discover
 
 # Build frontend
 RUN npm run build
