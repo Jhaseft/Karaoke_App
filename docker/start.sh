@@ -17,6 +17,8 @@ php artisan route:cache
 php artisan view:cache
 
 # Iniciar PHP-FPM en background
+PHP_FPM_CONF=$(php-fpm --ini | grep 'Loaded Configuration' | awk '{print $4}')
+echo 'request_terminate_timeout = 120' >> /usr/local/etc/php-fpm.d/www.conf
 php-fpm -D
 
 # Iniciar scheduler de Laravel en background
